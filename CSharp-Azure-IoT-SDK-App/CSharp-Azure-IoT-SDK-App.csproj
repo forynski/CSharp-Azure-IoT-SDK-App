@@ -8,4 +8,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Devices.Client" Version="1.42.1" />
+    <PackageReference Include="Microsoft.Azure.Devices.Provisioning.Client" Version="1.19.4" />
+    <PackageReference Include="Microsoft.Azure.Devices" Version="1.39.1" />
+    <PackageReference Include="Microsoft.Azure.Devices.Provisioning.Service" Version="1.18.4" />
+    <PackageReference Include="Microsoft.Azure.Devices.Provisioning.Transport.Mqtt" Version="1.17.4" />
+  </ItemGroup>
 </Project>

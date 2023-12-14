@@ -1,3 +1,16 @@
+# .gitignore
+
+# Ignore Visual Studio Code settings
+.vscode/
+
+# Ignore configuration files
+**/App.config
+**/appsettings.json
+
+# Ignore build output
+/bin/
+/obj/
+
 # globs
 Makefile.in
 *.userprefs
