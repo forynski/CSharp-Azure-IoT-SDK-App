@@ -5,6 +5,7 @@ using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Provisioning.Client;
 using Microsoft.Azure.Devices.Provisioning.Client.Transport;
 using Microsoft.Azure.Devices.Shared;
+using System.Net.NetworkInformation;
 
 class Program
 {
@@ -32,23 +33,24 @@ class Program
 
                 using (var deviceClient = DeviceClient.Create(result.AssignedHub, auth, TransportType.Mqtt))
                 {
-                    // Your application logic here
-
-                    // Simulate sending telemetry data
-                    for (int i = 0; i < 10; i++)
+                    // Run a continuous loop with a delay of 5 seconds
+                    while (true)
                     {
-                        string telemetryData = $"{{\"temperature\": {20 + i}}}";
-                        var message = new Message(Encoding.UTF8.GetBytes(telemetryData));
+                        // Gather and send system information
+                        string systemInfo = $"{{\"os\": \"{Environment.OSVersion}\", \"machine\": \"{Environment.MachineName}\"}}";
+                        await SendTelemetry(deviceClient, systemInfo);
 
-                        await deviceClient.SendEventAsync(message);
-                        Console.WriteLine($"Telemetry sent: {telemetryData}");
+                        // Gather and send file system information
+                        string fileSystemInfo = GetFileSystemInfo();
+                        await SendTelemetry(deviceClient, fileSystemInfo);
 
-                        await Task.Delay(1000); // Simulate a delay between telemetry messages
+                        // Gather and send network information
+                        string networkInfo = GetNetworkInfo();
+                        await SendTelemetry(deviceClient, networkInfo);
+
+                        // Delay for 5 seconds before the next iteration
+                        await Task.Delay(5000);
                     }
-
-                    // Ensure the device stays connected
-                    Console.WriteLine("Press Enter to exit.");
-                    Console.ReadLine();
                 }
             }
             else
@@ -58,4 +60,38 @@ class Program
         }
     }
 
+    static async Task SendTelemetry(DeviceClient deviceClient, string telemetryData)
+    {
+        var message = new Message(Encoding.UTF8.GetBytes(telemetryData));
+        await deviceClient.SendEventAsync(message);
+        Console.WriteLine($"Telemetry sent: {telemetryData}");
+    }
+
+    static string GetFileSystemInfo()
+    {
+        // Implement file system information retrieval here
+        // Example: Get information about available drives and their free space
+        DriveInfo[] allDrives = DriveInfo.GetDrives();
+        string fileSystemInfo = $"{{\"drives\": [";
+        foreach (DriveInfo drive in allDrives)
+        {
+            fileSystemInfo += $"{{\"name\": \"{drive.Name}\", \"totalSpace\": {drive.TotalSize}, \"freeSpace\": {drive.TotalFreeSpace}}},";
+        }
+        fileSystemInfo = fileSystemInfo.TrimEnd(',') + "]}}";
+        return fileSystemInfo;
+    }
+
+    static string GetNetworkInfo()
+    {
+        // Implement network information retrieval here
+        // Example: Get information about network interfaces
+        NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+        string networkInfo = $"{{\"networkInterfaces\": [";
+        foreach (NetworkInterface nic in networkInterfaces)
+        {
+            networkInfo += $"{{\"name\": \"{nic.Description}\", \"type\": \"{nic.NetworkInterfaceType}\", \"speed\": {nic.Speed}}},";
+        }
+        networkInfo = networkInfo.TrimEnd(',') + "]}}";
+        return networkInfo;
+    }
 }
