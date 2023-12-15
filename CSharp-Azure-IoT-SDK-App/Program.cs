@@ -6,6 +6,7 @@ using Microsoft.Azure.Devices.Provisioning.Client;
 using Microsoft.Azure.Devices.Provisioning.Client.Transport;
 using Microsoft.Azure.Devices.Shared;
 using System.Net.NetworkInformation;
+using System.Diagnostics;
 
 class Program
 {
@@ -36,17 +37,9 @@ class Program
                     // Run a continuous loop with a delay of 5 seconds
                     while (true)
                     {
-                        // Gather and send system information
-                        string systemInfo = $"{{\"os\": \"{Environment.OSVersion}\", \"machine\": \"{Environment.MachineName}\"}}";
-                        await SendTelemetry(deviceClient, systemInfo);
-
-                        // Gather and send file system information
-                        string fileSystemInfo = GetFileSystemInfo();
-                        await SendTelemetry(deviceClient, fileSystemInfo);
-
-                        // Gather and send network information
-                        string networkInfo = GetNetworkInfo();
-                        await SendTelemetry(deviceClient, networkInfo);
+                        // Gather and send power metrics data
+                        string powerMetricsInfo = RunPowerMetricsCommandWithSudo();
+                        await SendTelemetry(deviceClient, powerMetricsInfo);
 
                         // Delay for 5 seconds before the next iteration
                         await Task.Delay(5000);
@@ -67,31 +60,40 @@ class Program
         Console.WriteLine($"Telemetry sent: {telemetryData}");
     }
 
-    static string GetFileSystemInfo()
+    static string RunPowerMetricsCommandWithSudo()
     {
-        // Implement file system information retrieval here
-        // Example: Get information about available drives and their free space
-        DriveInfo[] allDrives = DriveInfo.GetDrives();
-        string fileSystemInfo = $"{{\"drives\": [";
-        foreach (DriveInfo drive in allDrives)
-        {
-            fileSystemInfo += $"{{\"name\": \"{drive.Name}\", \"totalSpace\": {drive.TotalSize}, \"freeSpace\": {drive.TotalFreeSpace}}},";
-        }
-        fileSystemInfo = fileSystemInfo.TrimEnd(',') + "]}}";
-        return fileSystemInfo;
-    }
+        string powerMetricsOutput = string.Empty;
 
-    static string GetNetworkInfo()
-    {
-        // Implement network information retrieval here
-        // Example: Get information about network interfaces
-        NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-        string networkInfo = $"{{\"networkInterfaces\": [";
-        foreach (NetworkInterface nic in networkInterfaces)
+        try
         {
-            networkInfo += $"{{\"name\": \"{nic.Description}\", \"type\": \"{nic.NetworkInterfaceType}\", \"speed\": {nic.Speed}}},";
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "/usr/bin/sudo",
+                Arguments = "/usr/bin/powermetrics",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (Process process = new Process { StartInfo = psi })
+            {
+                process.Start();
+
+                using (StreamReader reader = process.StandardOutput)
+                {
+                    // Read only the first three lines of powermetrics output
+                    for (int i = 0; i < 3; i++)
+                    {
+                        powerMetricsOutput += reader.ReadLine() + Environment.NewLine;
+                    }
+                }
+            }
         }
-        networkInfo = networkInfo.TrimEnd(',') + "]}}";
-        return networkInfo;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error running powermetrics with sudo: {ex.Message}");
+        }
+
+        return powerMetricsOutput;
     }
 }
